@@ -25,22 +25,49 @@
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>///Vars
-draw_set_font(ft_text);
+            <string>/*
 
-create_done = false;
+-------------------------------------------------------------------
+Gameplay:
+-------------------------------------------------------------------
 
-cur_story = 0;
+Number keys to select an option.
+Space to speed up the text.
 
-char = 0;
+-------------------------------------------------------------------
+Explanation:
+-------------------------------------------------------------------
 
-alarm_choice = -1;
+This object uses 3 arrays to organize the story.
 
-//const
-choices = 2;
+story[n] contains the text for each story point (n).
+The current story point is stored in 'cur_story', starts at 0.
 
-text_speed = 0.8;
-text_speed_org = text_speed;
+choice[n, p] contains the text for the options/choices at each point.
+Maximum choices stored in 'choices'.
+
+path[n, m] contains the story point each option/choice leads to.
+
+-------------------------------------------------------------------
+
+Each room acts as a different chapter in the story.
+The story is initialized for each room in the Create event.
+
+-------------------------------------------------------------------
+
+If you set an option's story point in the path[] array as one of
+the following values, some event will be triggered when that option
+is chosen:
+
+100: Goes to next room, restarts if last room
+200: Goes to menu
+300: Quits game
+
+You can modify this behavior in the Alarm 0 event.
+
+-------------------------------------------------------------------
+
+*/
 </string>
           </argument>
         </arguments>
@@ -61,7 +88,42 @@ text_speed_org = text_speed;
         <arguments>
           <argument>
             <kind>1</kind>
-            <string>///Main Menu
+            <string>///Vars
+draw_set_font(ft_text); //Font to use
+
+cur_story = 0; //current story point
+
+char = 0; //characters printed from the text
+
+alarm_choice = -1; //option selected to pass to the alarm
+
+text_speed = 0.8;
+
+//constants
+choices = 2; //maximum choices
+
+text_speed_org = text_speed; //constant text speed
+</string>
+          </argument>
+        </arguments>
+      </action>
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>///Main Menu Text
 if (room==room_menu){
 
 story[0] = "A Game of Thrones - Text Adventure
@@ -226,13 +288,13 @@ path[22, 1] = 100;
 
 //30-31
 story[30] = "Robert looks at you confusingly. 'What is it, Ned?'";
-choice[30, 0] = "Say: 'It's... Jon. Lyanna had a child when she died. Rhaegar's child. It's Jon.'";
+choice[30, 0] = "Say: 'I am actually a potato.'";
 path[30, 0] = 31;
 choice[30, 1] = "Don't him tell the secret, and instead say: 'Before dying, she was talking about you. She was worried. She loved you, truly.'";
 path[30, 1] = 3;
 
-story[31] = "The King's face turns red. 'You mean he's not your bastard? Gods, that's why you would never talk about her mother. How could you hide this from me, Ned?'";
-choice[31, 0] = "Say: 'I'm sorry, Your Grace. But in your fury against the Targaryens, I was afraid you would've hurt the innocent boy.'";
+story[31] = "The King's face turns red. 'You mean you're not a human? Gods, that's why you would never talk about your mother. How could you hide this from me, Ned?'";
+choice[31, 0] = "Say: 'I'm sorry, Your Grace. But in your fury against the potatoes, I was afraid you would've hurt the innocent boy.'";
 path[31, 0] = 20;
 choice[31, 1] = "Stay quiet and look away from Robert.";
 path[31, 1] = 20;
@@ -292,9 +354,10 @@ path[0, 1] = 300;
           <argument>
             <kind>1</kind>
             <string>///move to next story
+//get next story point from path[] array
 cur_story = path[cur_story, alarm_choice];
-char = 0;
-alarm_choice = -1;
+char = 0; //reset characters drawn
+alarm_choice = -1; //reset alarm choice
 
 //chapter end
 if (cur_story==100){ 
@@ -358,9 +421,9 @@ if (keyboard_check_pressed(ord("R"))){
           <argument>
             <kind>1</kind>
             <string>///message functions
-//get input
+//get which number key is being pressed
 var input = -1;
-//loop through number keys
+
 for(var i=1; i&lt;=choices; i++){
     if (keyboard_check_pressed(ord(string(i)))){
         input = i;
@@ -368,13 +431,14 @@ for(var i=1; i&lt;=choices; i++){
     }
 }
 
-//set story
+//trigger alarm on input, pass selected option to 'alarm_choice'
+//only when text has been completely drawn
 if (input!=-1 &amp;&amp; char&gt;=string_length(story[cur_story])){
     alarm_choice = input-1;
     alarm[0] = 20;
 }
 
-//text speed
+//text speed, faster on space hold
 if (keyboard_check(vk_space)){
     text_speed = text_speed_org*4;
 }
@@ -416,21 +480,25 @@ var width = room_width-margin*2;
 var text_draw = string_copy(story[cur_story], 1, char);
 draw_text_ext_colour(margin, margin, text_draw, -1, width, c_white, c_white, c_white, c_white, 1);
 
-
-//draw choices
+//draw choices if story completely typed out
 if (char&gt;=string_length(story[cur_story])){
-    var prev_height = 0;
+    var prev_height = 0; //total height of options drawn
+    
     for(var i=0; i&lt;choices; i++){
-        //alpha
+        //alpha - blink it if selected
         var text_alpha = 1;
         if (alarm_choice==i) text_alpha = ((sin(current_time/40)+1)/2); 
+        
         //text
+        //draw with number
         var text = "("+string(i+1)+") " + choice[cur_story, i];
         draw_text_ext_colour(margin, height + prev_height, text, -1, width, c_white, c_white, c_white, c_white, text_alpha);
+        
         //choices height
         prev_height += string_height_ext(text, -1, width)+8;
     }
 }
+//if not yet completely typed out, type it out
 else{
     char += text_speed;
 }
